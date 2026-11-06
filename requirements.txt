@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pydantic
+google-genai
+janus-swi
+python-dotenv
+pytest
+httpx
