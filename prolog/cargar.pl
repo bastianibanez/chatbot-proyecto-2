@@ -1,3 +1,4 @@
+:- encoding(utf8).
 % =============================================================
 % Punto de entrada: carga la base de conocimiento completa.
 %   swipl prolog/cargar.pl
@@ -13,3 +14,5 @@
 
 % Hechos agregados a mano.
 :- ensure_loaded(kb_manual).
+
+:- ensure_loaded(reglas).

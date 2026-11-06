@@ -1,0 +1,162 @@
+[
+  {
+    "pregunta": "¿Quién fue campeón en 2022?",
+    "esperado": "Argentina fue campeón",
+    "estado": "ok",
+    "intencion": "campeon",
+    "respuesta": "Argentina fue campeón del Mundial 2022.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Quién fue campeón en 1930?",
+    "esperado": "Uruguay fue campeón",
+    "estado": "ok",
+    "intencion": "campeon",
+    "respuesta": "Uruguay fue campeón del Mundial 1930.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Quién fue campeón en 1986?",
+    "esperado": "Argentina fue campeón",
+    "estado": "ok",
+    "intencion": "campeon",
+    "respuesta": "Argentina fue campeón del Mundial 1986.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Quién fue subcampeón en 2014?",
+    "esperado": "Argentina fue subcampeón",
+    "estado": "ok",
+    "intencion": "subcampeon",
+    "respuesta": "Argentina fue subcampeón del Mundial 2014.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Quién obtuvo el tercer lugar en 1962?",
+    "esperado": "Chile obtuvo el tercer lugar",
+    "estado": "ok",
+    "intencion": "tercero",
+    "respuesta": "Chile obtuvo el tercer lugar en 1962.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Cuáles fueron las sedes de 2002?",
+    "esperado": "Corea del Sur, Japón",
+    "estado": "ok",
+    "intencion": "sede",
+    "respuesta": "Sede(s) de 2002: Corea del Sur, Japón.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Dónde se jugó el Mundial 1962?",
+    "esperado": "Chile",
+    "estado": "ok",
+    "intencion": "sede",
+    "respuesta": "Sede(s) de 1962: Chile.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Cuántas selecciones hubo en 1930?",
+    "esperado": "13 selecciones",
+    "estado": "ok",
+    "intencion": "equipos",
+    "respuesta": "En 1930 participaron 13 selecciones.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Cuántos equipos hubo en 2022?",
+    "esperado": "32 selecciones",
+    "estado": "ok",
+    "intencion": "equipos",
+    "respuesta": "En 2022 participaron 32 selecciones.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Cuántos partidos se disputaron en 2022?",
+    "esperado": "64 partidos",
+    "estado": "ok",
+    "intencion": "partidos",
+    "respuesta": "En 2022 se disputaron 64 partidos.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Cuántos goles hubo en 2022?",
+    "esperado": "172 goles",
+    "estado": "ok",
+    "intencion": "goles",
+    "respuesta": "En 2022 se marcaron 172 goles, sin sumar tandas de penales.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Cuántos títulos tiene Brasil?",
+    "esperado": "5 título(s)",
+    "estado": "ok",
+    "intencion": "titulos",
+    "respuesta": "Brasil tiene 5 título(s) con esta identidad de selección en la base 1930-2022.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Cuántos títulos tiene Chile?",
+    "esperado": "0 título(s)",
+    "estado": "ok",
+    "intencion": "titulos",
+    "respuesta": "Chile tiene 0 título(s) con esta identidad de selección en la base 1930-2022.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿En qué años Argentina fue campeón?",
+    "esperado": "1978, 1986, 2022",
+    "estado": "ok",
+    "intencion": "anios",
+    "respuesta": "Años en que Argentina fue campeón: 1978, 1986, 2022.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿En qué mundiales participó Chile?",
+    "esperado": "1930, 1950, 1962, 1966, 1974, 1982, 1998, 2010, 2014",
+    "estado": "ok",
+    "intencion": "participaciones",
+    "respuesta": "Participaciones de Chile: 1930, 1950, 1962, 1966, 1974, 1982, 1998, 2010, 2014.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Qué anfitriones fueron campeones?",
+    "esperado": "Argentina (1978)",
+    "estado": "ok",
+    "intencion": "anfitriones_campeones",
+    "respuesta": "Anfitriones campeones: Uruguay (1930), Italia (1934), Inglaterra (1966), Alemania Occidental (1974), Argentina (1978), Francia (1998).",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Quién ganó el balón de oro en 2022?",
+    "esperado": "Lionel Messi",
+    "estado": "ok",
+    "intencion": "premio",
+    "respuesta": "balon de oro de 2022: Lionel Messi.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Quién fue goleador en 2014?",
+    "esperado": "James Rodríguez, con 6 goles",
+    "estado": "ok",
+    "intencion": "goleador",
+    "respuesta": "Goleador(es) de 2014: James Rodríguez, con 6 goles cada uno (sin autogoles).",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Cómo fue la final de 2022?",
+    "esperado": "Argentina 3-3 Francia. Tanda de penales: 4-2",
+    "estado": "ok",
+    "intencion": "final",
+    "respuesta": "Final 2022: Argentina 3-3 Francia. Tanda de penales: 4-2. Ganador: Argentina.",
+    "correcto": true
+  },
+  {
+    "pregunta": "¿Cómo fue la final de 1950?",
+    "esperado": "no hubo una final única",
+    "estado": "ok",
+    "intencion": "final",
+    "respuesta": "En 1950 no hubo una final única: el título se decidió en un grupo final. Uruguay fue campeón.",
+    "correcto": true
+  }
+]

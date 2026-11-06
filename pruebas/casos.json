@@ -1,0 +1,22 @@
+[
+ {"pregunta":"¿Quién fue campeón en 2022?", "esperado":"Argentina fue campeón"},
+ {"pregunta":"¿Quién fue campeón en 1930?", "esperado":"Uruguay fue campeón"},
+ {"pregunta":"¿Quién fue campeón en 1986?", "esperado":"Argentina fue campeón"},
+ {"pregunta":"¿Quién fue subcampeón en 2014?", "esperado":"Argentina fue subcampeón"},
+ {"pregunta":"¿Quién obtuvo el tercer lugar en 1962?", "esperado":"Chile obtuvo el tercer lugar"},
+ {"pregunta":"¿Cuáles fueron las sedes de 2002?", "esperado":"Corea del Sur, Japón"},
+ {"pregunta":"¿Dónde se jugó el Mundial 1962?", "esperado":"Chile"},
+ {"pregunta":"¿Cuántas selecciones hubo en 1930?", "esperado":"13 selecciones"},
+ {"pregunta":"¿Cuántos equipos hubo en 2022?", "esperado":"32 selecciones"},
+ {"pregunta":"¿Cuántos partidos se disputaron en 2022?", "esperado":"64 partidos"},
+ {"pregunta":"¿Cuántos goles hubo en 2022?", "esperado":"172 goles"},
+ {"pregunta":"¿Cuántos títulos tiene Brasil?", "esperado":"5 título(s)"},
+ {"pregunta":"¿Cuántos títulos tiene Chile?", "esperado":"0 título(s)"},
+ {"pregunta":"¿En qué años Argentina fue campeón?", "esperado":"1978, 1986, 2022"},
+ {"pregunta":"¿En qué mundiales participó Chile?", "esperado":"1930, 1950, 1962, 1966, 1974, 1982, 1998, 2010, 2014"},
+ {"pregunta":"¿Qué anfitriones fueron campeones?", "esperado":"Argentina (1978)"},
+ {"pregunta":"¿Quién ganó el balón de oro en 2022?", "esperado":"Lionel Messi"},
+ {"pregunta":"¿Quién fue goleador en 2014?", "esperado":"James Rodríguez, con 6 goles"},
+ {"pregunta":"¿Cómo fue la final de 2022?", "esperado":"Argentina 3-3 Francia. Tanda de penales: 4-2"},
+ {"pregunta":"¿Cómo fue la final de 1950?", "esperado":"no hubo una final única"}
+]

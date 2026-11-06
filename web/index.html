@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MundialBot</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header>
+    <h1>MundialBot</h1>
+    <p>Mundiales masculinos · 1930–2022</p>
+  </header>
+  <main>
+    <aside aria-labelledby="titulo-ejemplos">
+      <h2 id="titulo-ejemplos">Ejemplos</h2>
+      <div id="ejemplos">
+        <button type="button">¿Quién fue campeón en 2022?</button>
+        <button type="button">¿Cuáles fueron las sedes de 2002?</button>
+        <button type="button">¿Cuántos títulos tiene Brasil?</button>
+        <button type="button">¿Cómo fue la final de 2022?</button>
+        <button type="button">¿Quién fue goleador en 2014?</button>
+      </div>
+    </aside>
+    <section class="chat" aria-label="Chat de preguntas">
+      <div class="chat-top">
+        <h2>Chat</h2>
+        <button id="limpiar" type="button">Limpiar</button>
+      </div>
+      <div id="mensajes" role="log" aria-live="polite" aria-label="Mensajes" tabindex="0"></div>
+      <div class="chat-bottom">
+        <p id="estado" role="status"></p>
+        <form id="formulario">
+          <label class="sr-only" for="pregunta">Tu pregunta</label>
+          <input id="pregunta" placeholder="Escribe una pregunta" maxlength="500" autocomplete="off" required>
+          <button id="enviar" type="submit">Enviar</button>
+        </form>
+      </div>
+    </section>
+  </main>
+  <footer>Datos: Fjelstul World Cup Database v1.2.0 · CC-BY-SA 4.0</footer>
+</body>
+</html>

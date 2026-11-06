@@ -108,7 +108,7 @@ def leer_csv(directorio, nombre):
 
 def escribir_pl(ruta, descripcion, firmas, secciones):
     """firmas: ['partido/7', ...]; secciones: [(comentario, [lineas])]."""
-    partes = [ENCABEZADO, f"% {descripcion}\n"]
+    partes = [":- encoding(utf8).\n", ENCABEZADO, f"% {descripcion}\n"]
     for firma in firmas:
         partes.append(f":- dynamic({firma}).\n")
     for comentario, lineas in secciones:

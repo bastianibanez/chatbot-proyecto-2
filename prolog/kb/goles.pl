@@ -1,3 +1,4 @@
+:- encoding(utf8).
 % =============================================================
 % ARCHIVO GENERADO por scripts/csv_a_prolog.py. NO EDITAR A MANO.
 % Fuente: Fjelstul World Cup Database v1.2.0, (c) 2023 Joshua C.
