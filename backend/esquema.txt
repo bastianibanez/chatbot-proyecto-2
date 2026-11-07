@@ -1,0 +1,35 @@
+Hechos y reglas de la base de Mundiales:
+
+torneo(Anio, CantidadEquipos)
+sede(Anio, Equipo): país anfitrión; una fila por país
+posicion_final(Anio, Posicion, Equipo): puestos 1 a 4
+equipo(Id, Nombre, Confederacion): Nombre es string; confederación no equivale a continente
+partido(Id, Anio, Fase, Local, Visita, GolesLocal, GolesVisita): marcador sin tanda de penales
+partido_grupo(IdPartido, Grupo)
+partido_fecha(IdPartido, date(Anio, Mes, Dia))
+partido_lugar(IdPartido, Estadio, Ciudad)
+alargue(IdPartido)
+penales(IdPartido, PenalesLocal, PenalesVisita)
+repetido(IdPartido): partido original que tuvo repetición
+repeticion(IdPartido): partido de repetición
+gol(IdPartido, IdJugador, EquipoDelJugador, Minuto, Tipo): Tipo normal, penal o autogol; excluir autogol al contar goles de jugadores
+jugador(Id, Nombre, Posicion): jugadores con goles o premios, no todos los convocados; Nombre es string
+premio(Anio, Premio, IdJugador): premios individuales; consultar valores existentes
+campeon(Anio, Equipo)
+subcampeon(Anio, Equipo)
+tercero(Anio, Equipo)
+anfitrion_campeon(Anio, Equipo)
+participa(Equipo, Anio)
+cantidad_titulos(Equipo, Cantidad)
+anios_campeon(Equipo, Anios)
+anios_participacion(Equipo, Anios)
+cantidad_partidos(Anio, Cantidad)
+goles_torneo(Anio, Cantidad)
+ganador_partido(IdPartido, Equipo): considera tanda de penales
+empate_marcador(IdPartido): antes de tanda de penales
+goles_jugador(IdJugador, Anio, Cantidad): sin autogoles
+goleadores(Anio, ListaIdsJugadores, Goles): máximos goleadores de una edición, incluidos empates
+
+Puedes usar los predicados de SWI-Prolog y combinarlos libremente.
+Están cargadas las bibliotecas lists, aggregate y solution_sequences.
+Por ejemplo: findall/3, setof/3, aggregate_all/3, keysort/2, reverse/2 y member/2.
