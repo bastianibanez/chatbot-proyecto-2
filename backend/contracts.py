@@ -1,36 +1,18 @@
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-CONSULTAS = (
-    "campeon",
-    "subcampeon",
-    "tercero",
-    "sede",
-    "equipos",
-    "partidos",
-    "goles",
-    "goleador",
-    "final",
-    "titulos",
-    "anios",
-    "participaciones",
-    "premio",
-    "anfitriones_campeones",
-)
-
-
 class Query(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    consulta: str
-    anio: int | None = None
-    seleccion: str | None = None
-    premio: str | None = None
+    consulta: str = Field(min_length=1, max_length=6000,
+                          description="Objetivo Prolog, sin ?-. Se devuelven sus variables nombradas.")
+    limite: int = Field(default=50, ge=1, le=100,
+                        description="Máximo de soluciones; no limita los datos usados en agregaciones.")
 
     @field_validator("consulta")
     @classmethod
-    def query_conocida(cls, value):
-        if value not in CONSULTAS:
-            raise ValueError("Consulta no soportada")
+    def no_vacia(cls, value):
+        if not value.strip():
+            raise ValueError("La consulta no puede estar vacía")
         return value
 
 
@@ -49,5 +31,5 @@ class ChatRequest(BaseModel):
 
 class RespuestaFinal(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    tipo: Literal["respuesta", "aclaracion", "fuera_alcance", "error"]
+    tipo: Literal["respuesta", "conversacion", "aclaracion", "fuera_alcance", "error"]
     texto: str = Field(min_length=1, max_length=4000)
