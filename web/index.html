@@ -26,7 +26,14 @@
     <section class="chat" aria-label="Chat de preguntas">
       <div class="chat-top">
         <h2>Chat</h2>
-        <button id="limpiar" type="button">Limpiar</button>
+        <div class="chat-controles">
+          <label class="sr-only" for="modo">Modo de respuesta</label>
+          <select id="modo">
+            <option value="prolog">Prolog</option>
+            <option value="llm" selected>LLM</option>
+          </select>
+          <button id="limpiar" type="button">Limpiar</button>
+        </div>
       </div>
       <div id="mensajes" role="log" aria-live="polite" aria-label="Mensajes" tabindex="0"></div>
       <div class="chat-bottom">

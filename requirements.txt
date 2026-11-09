@@ -3,6 +3,7 @@ uvicorn
 pydantic
 openai
 rich
+markdown-it-py
 janus-swi
 python-dotenv
 pytest

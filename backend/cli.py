@@ -26,9 +26,10 @@ console = Console(markup=False, highlight=False)
 def imprimir_tool_call(event):
     """Mostrar la llamada al recibirla, antes de esperar su resultado."""
     argumentos = json.dumps(event["argumentos"], ensure_ascii=False, indent=2)
+    prefijo = f"[{event['prefijo']}] " if event.get("prefijo") else ""
     console.print(Panel(
         Syntax(argumentos, "json", word_wrap=True, background_color="default"),
-        title=Text(f"Tool {event['numero']} · {event['herramienta']}"),
+        title=Text(f"{prefijo}Tool {event['numero']} · {event['herramienta']}"),
         title_align="left", border_style="dim", padding=(0, 1),
     ))
 
