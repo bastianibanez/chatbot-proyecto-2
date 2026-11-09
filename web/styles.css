@@ -49,11 +49,39 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .markdown table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
 .markdown th, .markdown td { padding: 6px 10px; border: 1px solid var(--linea); text-align: left; }
 .markdown a { color: var(--acento); }
-.markdown code, .consultas pre { font-family: ui-monospace, monospace; font-size: 12px; }
-.markdown pre, .consultas pre { background: #161a18; padding: 12px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
-.consultas { margin-top: 14px; white-space: normal; color: var(--secundario); font-size: 12px; }
-.consultas summary { cursor: pointer; }
-.consultas p { margin: 10px 0 4px; }
+.markdown code, .tool-detalle code, .termino-prolog { font-family: ui-monospace, monospace; font-size: 12px; }
+.markdown pre, .tool-detalle pre { background: #161a18; padding: 12px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bot:has(.tool-call) { width: 100%; max-width: 100%; min-width: 0; }
+.tool-calls { white-space: normal; color: var(--secundario); font-size: 12px; }
+.tool-calls:not(:empty) { margin-bottom: 16px; }
+.tool-call { border-bottom: 1px solid var(--linea); }
+.tool-call summary { display: flex; align-items: baseline; gap: 8px; padding: 10px 2px; cursor: pointer; list-style: none; }
+.tool-call summary::-webkit-details-marker { display: none; }
+.tool-call summary::before { content: '›'; flex: 0 0 10px; color: var(--secundario); font-size: 16px; line-height: 1; }
+.tool-call[open] summary::before { transform: rotate(90deg); }
+.tool-call summary:hover .tool-titulo { color: #e9ece8; }
+.tool-titulo { flex: 1; min-width: 0; color: #c9d1cb; font-size: 13px; }
+.tool-estado { flex-shrink: 0; font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
+.tool-call[data-estado="ejecutando"] .tool-estado, .tool-call[data-estado="ok"] .tool-estado { color: var(--acento); }
+.tool-call[data-estado="consulta_invalida"] .tool-estado, .tool-call[data-estado="error"] .tool-estado,
+.tool-call[data-estado="interrumpida"] .tool-estado,
+.tool-call[data-estado="limite"] .tool-estado { color: #e7b5a8; }
+.tool-detalle { padding: 0 0 14px 20px; }
+.tool-detalle h3 { margin: 12px 0 6px; font-size: 12px; font-weight: 600; color: #c9d1cb; }
+.tool-detalle pre { margin: 6px 0 14px; color: #d8e3d2; line-height: 1.7; }
+.tool-detalle pre, .tool-resultados { max-height: min(240px, 35dvh); overflow: auto; scrollbar-width: thin; scrollbar-color: #4d5b50 transparent; }
+.tool-detalle pre:focus-visible, .tool-resultados:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.tool-resultados .resultados-tabla { overflow: visible; }
+.tool-detalle p { margin: 6px 0; }
+.tool-nombre, .tool-nota { font-size: 11px; }
+.resultados-tabla { max-width: 100%; overflow-x: auto; }
+.resultados-tabla table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.resultados-tabla th, .resultados-tabla td { text-align: left; vertical-align: top; padding: 7px 10px; border-bottom: 1px solid var(--linea); }
+.resultados-tabla th { color: #c9d1cb; font-weight: 600; }
+.tool-detalle ul { margin: 4px 0; padding-left: 18px; }
+.tool-detalle dl { margin: 4px 0; }
+.tool-detalle dt { font-weight: 600; }
+.tool-detalle dd { margin: 0 0 6px 12px; }
 .error { color: #e7b5a8; }
 .chat-bottom { padding: 16px 20px 20px; }
 #estado { margin: 0 4px 12px; color: var(--secundario); font-size: 13px; }
@@ -80,6 +108,9 @@ footer { margin-top: 24px; text-align: right; font-size: 11px; line-height: 1.6;
   .chat-top { padding: 12px 16px; }
   #mensajes { padding: 20px 16px; }
   .chat-bottom { padding: 12px; }
+  .tool-call summary { flex-wrap: wrap; gap: 4px 8px; }
+  .tool-titulo { flex-basis: calc(100% - 18px); }
+  .tool-estado { margin-left: 18px; }
   #enviar { padding: 11px 14px; }
   footer { text-align: left; }
 }

@@ -4,6 +4,7 @@ import asyncio
 import json
 from copy import deepcopy
 from pathlib import Path
+from time import perf_counter
 
 from pydantic import ValidationError
 
@@ -28,7 +29,9 @@ def crear_herramienta() -> dict:
                         "por _ se omiten), estado y truncado. Listas y números conservan su tipo; "
                         "términos compuestos se representan con functor y argumentos. "
                         "Sin soluciones: sin_datos. Errores de consulta: consulta_invalida. "
-                        "Cada consulta tiene 3 segundos y devuelve hasta limite soluciones. "
+                        "Cada consulta tiene 30 segundos, incluida su conversión a JSON, y devuelve "
+                        "hasta limite soluciones y 60000 caracteres. Resultados excesivos: limite; "
+                        "corrige devolviendo solo variables finales y usando _ en las intermedias. "
                         "No hay sandbox ni lista de operaciones permitidas."),
         "parameters": Query.model_json_schema(),
         # Mantener limite opcional y validar los argumentos localmente con Pydantic.
@@ -37,21 +40,23 @@ def crear_herramienta() -> dict:
 
 
 async def run_turn(client, model, previous, question, execute=prolog, *, timeout=TURN_TIMEOUT,
-                   on_tool_call=None, reasoning_effort=REASONING_EFFORT):
+                   on_tool_call=None, on_tool_result=None, reasoning_effort=REASONING_EFFORT):
     """Devolver (resultado, turno_completo, traza), sin modificar previous.
 
     client es un AsyncOpenAI. previous contiene los items completos de Responses,
     incluidos razonamiento cifrado, llamadas y resultados. El llamador conserva
     turnos completos; los fallos técnicos se propagan y no son sin_datos.
     on_tool_call recibe nombre y argumentos antes de validar y ejecutar cada llamada.
+    on_tool_result recibe el resultado y la duración al terminar cada llamada.
     """
     if not isinstance(question, str) or not question.strip():
         raise ValueError("La pregunta debe ser un texto no vacío")
     async with asyncio.timeout(timeout):
-        return await _run_turn(client, model, previous, question, execute, on_tool_call, reasoning_effort)
+        return await _run_turn(client, model, previous, question, execute, on_tool_call,
+                               on_tool_result, reasoning_effort)
 
 
-async def _run_turn(client, model, previous, question, execute, on_tool_call, reasoning_effort):
+async def _run_turn(client, model, previous, question, execute, on_tool_call, on_tool_result, reasoning_effort):
     contents = deepcopy(previous)
     start = len(contents)
     contents.append({"role": "user", "content": question})
@@ -102,6 +107,7 @@ async def _run_turn(client, model, previous, question, execute, on_tool_call, re
         contents.extend(output)
         for call in calls:
             used += 1
+            started = perf_counter()
             try:
                 arguments = json.loads(call.arguments)
             except ValueError:
@@ -119,8 +125,22 @@ async def _run_turn(client, model, previous, question, execute, on_tool_call, re
             except ValueError as exc:
                 result = {"estado": "consulta_invalida", "detalle": str(exc)}
             else:
-                result = await execute({"modo": "consulta", "argumentos": query.model_dump()})
-            trace.append({"herramienta": call.name, "argumentos": arguments, "resultado": result})
+                try:
+                    result = await execute({"modo": "consulta", "argumentos": query.model_dump()})
+                except (Exception, asyncio.CancelledError) as exc:
+                    if on_tool_result is not None:
+                        on_tool_result({"numero": used, "herramienta": call.name,
+                            "argumentos": deepcopy(arguments),
+                            "duracion_ms": round((perf_counter() - started) * 1000),
+                            "resultado": {"estado": "interrumpida" if isinstance(exc, asyncio.CancelledError) else "error",
+                                "detalle": "La consulta se interrumpió antes de recibir un resultado."
+                                    if isinstance(exc, asyncio.CancelledError) else "No se pudo ejecutar la consulta Prolog."}})
+                    raise
+            entry = {"numero": used, "herramienta": call.name, "argumentos": arguments,
+                     "resultado": result, "duracion_ms": round((perf_counter() - started) * 1000)}
+            trace.append(entry)
+            if on_tool_result is not None:
+                on_tool_result(deepcopy(entry))
             contents.append({"type": "function_call_output", "call_id": call.call_id,
                              "output": json.dumps(result, ensure_ascii=False)})
     return finish("Alcancé el límite de consultas.", "limite")

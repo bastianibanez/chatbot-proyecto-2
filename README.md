@@ -19,8 +19,10 @@ en memoria. En Windows también se puede ejecutar `./iniciar.ps1` desde PowerShe
 
 El selector permite alternar entre **Prolog** y **LLM**. Cada modo conserva sus
 mensajes por separado en la página. El LLM mantiene diez turnos de contexto en el
-servidor; “Limpiar” elimina esa sesión. Las respuestas muestran Markdown y las
-consultas a Prolog se pueden desplegar al terminar cada respuesta. Recargar la
+servidor; “Limpiar” elimina esa sesión. Las respuestas muestran Markdown. Cada
+llamada a Prolog aparece en tiempo real con una descripción breve; al desplegarla
+se muestran la consulta y sus resultados como tablas o listas. Al terminar la
+respuesta, las llamadas quedan colapsadas con su estado y duración. Recargar la
 página inicia un chat nuevo; reiniciar el backend borra todas las sesiones.
 
 En la terminal del servidor se registra cada pregunta, sesión, modelo, estado y
@@ -34,6 +36,11 @@ descrita abajo. La documentación interactiva de la API está en **/docs**.
 - `POST /api/chat`: recibe `modo` (`prolog` o `llm`), `pregunta` y `sesion` opcional.
   Devuelve `respuesta`, `respuesta_html`, `estado`, `sesion` y `traza`.
 - `DELETE /api/sesiones/{sid}`: borra el contexto LLM de una conversación.
+- `POST /api/chat/stream`: recibe el mismo cuerpo que `/api/chat` y envía eventos
+  NDJSON, uno por línea: `tool_inicio`, `tool_fin`, `respuesta` o `error`, con su
+  contenido en `datos`. La web usa esta ruta para mostrar las llamadas en vivo.
+  Los errores durante el stream se informan en el evento `error` mediante
+  `status` y `detail`; al desconectarse el navegador se cancela el turno pendiente.
 
 Ejemplo de primera pregunta; usar la `sesion` devuelta para los seguimientos:
 
@@ -80,14 +87,20 @@ con su número, nombre y argumentos JSON, antes de ejecutarla.
 
 El asistente recibe el esquema de hechos y reglas y escribe consultas Prolog
 para responder, incluyendo agregaciones y rankings. La herramienta recibe
-`consulta` (código Prolog) y `limite` (1–100 soluciones, por defecto 50). Devuelve
+`descripcion` (acción breve en español, hasta 100 caracteres), `consulta` (código
+Prolog) y `limite` (1–100 soluciones, por defecto 50). La descripción solo sirve
+como título para la interfaz; no modifica la consulta. Devuelve
 las variables de cada solución y señala si el resultado está truncado. Los límites
 de soluciones se aplican después de calcular las agregaciones.
 
 Las consultas se ejecutan directamente con Janus en el mismo proceso de Python,
 sin sandbox ni lista de operaciones permitidas. `prolog/consultas.pl` ejecuta el
-objetivo y convierte sus resultados a JSON. Se conserva un límite de 3 segundos
-por consulta para evitar esperas largas. Cancelar la espera Python no detiene el
+objetivo y convierte sus resultados a JSON. Se conserva un límite de 30 segundos
+por consulta, incluida la conversión a JSON, para evitar esperas largas. Las
+respuestas demasiado grandes (más de 60.000 caracteres o estructuras excesivas)
+devuelven `limite` con instrucciones para reducir la salida. Las variables con
+`_` inicial se omiten antes de recopilar soluciones: las listas intermedias deben
+usar esos nombres para que no se repitan en cada fila. Cancelar la espera Python no detiene el
 hilo Prolog: la consulta termina por sí misma o al agotar ese límite.
 
 El conocimiento se carga una vez y ambos modos comparten la misma base en memoria.

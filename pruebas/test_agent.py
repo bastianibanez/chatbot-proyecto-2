@@ -297,3 +297,59 @@ def test_saludo_se_conserva_sin_autorizar_hechos_sin_evidencia():
     client, _ = client_for(final("respuesta", "Argentina ganó en 2022."))
     result, _, _ = asyncio.run(run_turn(client, "fake", previous, "¿Quién ganó en 2022?"))
     assert result["estado"] == "error"
+
+
+def test_descripcion_y_eventos_rodean_la_ejecucion():
+    argumentos = {'consulta': 'campeon(2022, Equipo)', 'descripcion': 'Buscar campeón de 2022'}
+    client, models = client_for(response(call(argumentos)), final())
+    eventos = []
+    async def execute(payload):
+        assert eventos[0][0] == 'inicio'
+        assert len(eventos) == 1
+        assert payload['argumentos']['descripcion'] == argumentos['descripcion']
+        return {'estado': 'ok', 'resultados': [{'Equipo': 'argentina'}]}
+    def terminar(evento):
+        assert len(models.requests) == 1  # El modelo aún no recibió el resultado.
+        eventos.append(('fin', evento))
+        evento['resultado']['estado'] = 'modificado'  # El callback recibe una copia.
+    _, _, trace = asyncio.run(run_turn(client, 'fake', [], 'Campeón 2022', execute=execute,
+        on_tool_call=lambda event: eventos.append(('inicio', event)), on_tool_result=terminar))
+    assert [tipo for tipo, _ in eventos] == ['inicio', 'fin']
+    assert eventos[0][1]['argumentos']['descripcion'] == argumentos['descripcion']
+    assert trace[0]['resultado']['estado'] == 'ok'
+    assert trace[0]['duracion_ms'] >= 0
+
+
+@pytest.mark.parametrize('descripcion', ['', '   ', 'x' * 101, 42])
+def test_descripcion_invalida_se_devuelve_al_agente(descripcion):
+    client, _ = client_for(response(call({'consulta': 'true', 'descripcion': descripcion})),
+                           response(call()), final())
+    _, _, trace = asyncio.run(run_turn(client, 'fake', [], 'Pregunta', execute=success))
+    assert trace[0]['resultado']['estado'] == 'consulta_invalida'
+    assert trace[1]['resultado']['estado'] == 'ok'
+
+
+def test_fallo_tecnico_notifica_fin_de_tool_y_se_propaga():
+    client, _ = client_for(response(call()))
+    events = []
+    async def execute(payload):
+        raise KnowledgeError('detalle interno')
+    with pytest.raises(KnowledgeError):
+        asyncio.run(run_turn(client, 'fake', [], 'Pregunta', execute=execute,
+                             on_tool_result=events.append))
+    assert len(events) == 1
+    assert events[0]['resultado']['estado'] == 'error'
+    assert 'detalle interno' not in str(events)
+    assert events[0]['duracion_ms'] >= 0
+
+
+def test_timeout_de_turno_notifica_tool_interrumpida():
+    client, _ = client_for(response(call()))
+    events = []
+    async def execute(payload):
+        await asyncio.Event().wait()
+    with pytest.raises(TimeoutError):
+        asyncio.run(run_turn(client, 'fake', [], 'Pregunta', execute=execute, timeout=0.02,
+                             on_tool_result=events.append))
+    assert len(events) == 1
+    assert events[0]['resultado']['estado'] == 'interrumpida'

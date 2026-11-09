@@ -155,3 +155,33 @@ def test_fallo_tecnico_no_es_sin_datos(monkeypatch):
     monkeypatch.setattr(knowledge.janus, 'query_once', fallo)
     with pytest.raises(knowledge.KnowledgeError):
         consultar('true')
+
+
+def test_ranking_no_devuelve_listas_intermedias_en_cada_fila():
+    consulta = '''
+        findall(Total-Nombre-AniosGoles,
+          (jugador(J, Nombre, _Posicion),
+           findall(Anio-Goles, goles_jugador(J, Anio, Goles), Pares),
+           sort(Pares, AniosGoles), length(AniosGoles, Ediciones), Ediciones >= 2,
+           aggregate_all(sum(G), member(_Anio-G, AniosGoles), Total)), Filas),
+        keysort(Filas, Ascendente), reverse(Ascendente, Ordenadas),
+        nth1(Puesto, Ordenadas, Total-Nombre-AniosGoles), Puesto =< 20
+    '''
+    result = consultar(consulta, limite=20)
+    assert result['estado'] == 'limite'
+    assert '_Filas' in result['detalle']
+    assert 'resultados' not in result
+    for variable in ('Filas', 'Ascendente', 'Ordenadas'):
+        consulta = consulta.replace(variable, '_' + variable)
+    result = consultar(consulta, limite=20)
+    assert result['estado'] == 'ok'
+    assert len(result['resultados']) == 20
+    assert result['resultados'][0]['Nombre'] == 'Miroslav Klose'
+    assert not {'Filas', 'Ascendente', 'Ordenadas', '_Filas'} & result['resultados'][0].keys()
+
+
+def test_texto_excesivo_devuelve_error_y_permite_siguiente_consulta():
+    result = consultar("length(_Cs,60001), maplist(=(0'x),_Cs), atom_codes(Texto,_Cs)")
+    assert result['estado'] == 'limite'
+    assert 'demasiado grande' in result['detalle']
+    assert consultar('campeon(2022, Equipo)')['resultados'] == [{'Equipo': 'argentina'}]

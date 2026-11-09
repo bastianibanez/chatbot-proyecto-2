@@ -3,6 +3,8 @@
 from copy import deepcopy
 from io import StringIO
 import logging
+import asyncio
+import json
 
 import httpx
 import pytest
@@ -55,7 +57,7 @@ def test_frontend_y_prolog_real_sin_clave(client):
 
 def test_contexto_aislamiento_markdown_trazas_y_limpieza(client, monkeypatch):
     histories = []
-    async def turn(client, model, history, question, *, reasoning_effort, on_tool_call):
+    async def turn(client, model, history, question, *, reasoning_effort, on_tool_call, on_tool_result):
         assert model == 'modelo-prueba'
         assert reasoning_effort == 'high'
         histories.append(deepcopy(history))
@@ -167,3 +169,83 @@ def test_markdown_no_admite_html_ni_enlaces_ejecutables():
     assert '<script>' not in rendered
     assert 'href="javascript:' not in rendered
     assert '<table>' in rendered
+
+
+def test_stream_envia_inicio_y_resultado_antes_de_la_respuesta(client, monkeypatch):
+    async def escenario():
+        ejecutar = asyncio.Event()
+        terminar = asyncio.Event()
+        llamada = {'numero': 1, 'herramienta': 'consultar_mundiales',
+                   'argumentos': {'consulta': 'campeon(2022,E)', 'descripcion': 'Buscar campeón de 2022'}}
+        async def turn(*args, on_tool_call, on_tool_result, **kwargs):
+            on_tool_call(llamada)
+            await ejecutar.wait()
+            on_tool_result({**llamada, 'resultado': {'estado': 'ok', 'resultados': [{'E': 'argentina'}]},
+                            'duracion_ms': 12})
+            await terminar.wait()
+            return {'respuesta': 'Argentina', 'estado': 'respuesta'}, [], []
+        monkeypatch.setattr(api, 'run_turn', turn)
+        response = await api.chat_stream(api.ChatRequest(modo='llm', pregunta='Campeón 2022'))
+        stream = response.body_iterator
+        async def siguiente():
+            return json.loads(await asyncio.wait_for(anext(stream), 1))
+        try:
+            inicio = await siguiente()
+            assert inicio['tipo'] == 'tool_inicio'
+            assert inicio['datos']['argumentos']['descripcion'] == 'Buscar campeón de 2022'
+            ejecutar.set()
+            fin = await siguiente()
+            assert fin['tipo'] == 'tool_fin'
+            assert fin['datos']['duracion_ms'] == 12
+            terminar.set()
+            respuesta = await siguiente()
+            assert respuesta['tipo'] == 'respuesta'
+            assert respuesta['datos']['sesion'] in api.app.state.sessions
+            with pytest.raises(StopAsyncIteration):
+                await anext(stream)
+        finally:
+            await stream.aclose()
+    asyncio.run(escenario())
+
+
+def test_desconexion_cancela_turno_y_libera_sesion(client, monkeypatch):
+    async def escenario():
+        cancelado = asyncio.Event()
+        session = api.Session()
+        api.app.state.sessions['existente'] = session
+        async def turn(*args, on_tool_call, **kwargs):
+            on_tool_call({'numero': 1, 'herramienta': 'consultar_mundiales', 'argumentos': {}})
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelado.set()
+        monkeypatch.setattr(api, 'run_turn', turn)
+        response = await api.chat_stream(api.ChatRequest(modo='llm', pregunta='Hola', sesion='existente'))
+        stream = response.body_iterator
+        await asyncio.wait_for(anext(stream), 1)
+        assert session.lock.locked()
+        await stream.aclose()
+        assert cancelado.is_set()
+        assert not session.lock.locked()
+        assert not session.turns
+    asyncio.run(escenario())
+
+
+def test_stream_http_prolog_y_errores(client, monkeypatch):
+    result = client.post('/api/chat/stream', json={'modo': 'prolog', 'pregunta': '¿Quién fue campeón en 2022?'})
+    assert result.headers['content-type'].startswith('application/x-ndjson')
+    events = [json.loads(line) for line in result.text.splitlines()]
+    assert len(events) == 1
+    assert events[0]['tipo'] == 'respuesta'
+    assert 'Argentina' in events[0]['datos']['respuesta']
+    async def turn(*args, **kwargs):
+        raise KnowledgeError('detalle interno')
+    monkeypatch.setattr(api, 'run_turn', turn)
+    result = client.post('/api/chat/stream', json={'modo': 'llm', 'pregunta': 'Hola'})
+    event = json.loads(result.text)
+    assert event['tipo'] == 'error'
+    assert event['datos']['status'] == 502
+    assert 'detalle interno' not in result.text
+    assert not api.app.state.sessions
+    result = client.post('/api/chat/stream', json={'modo': 'llm', 'pregunta': 'Hola', 'sesion': 'no-existe'})
+    assert json.loads(result.text)['datos']['status'] == 410

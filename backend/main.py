@@ -1,10 +1,11 @@
 """API local y frontend de MundialBot: python -m uvicorn backend.main:app."""
 
 import asyncio
+import json
 import logging
 import os
 from collections import deque
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter
@@ -13,6 +14,7 @@ from uuid import uuid4
 from dotenv import dotenv_values
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
 from markdown_it import MarkdownIt
 from openai import AsyncOpenAI, APIConnectionError, APIStatusError, APITimeoutError
 from rich.markdown import Markdown
@@ -58,6 +60,43 @@ def respuesta_web(result):
 
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
+    return await ejecutar_chat(req)
+
+
+@app.post("/api/chat/stream")
+async def chat_stream(req: ChatRequest):
+    async def eventos():
+        queue = asyncio.Queue()
+
+        async def producir():
+            try:
+                result = await ejecutar_chat(req, lambda tipo, data: queue.put_nowait(
+                    {"tipo": tipo, "datos": data}))
+                queue.put_nowait({"tipo": "respuesta", "datos": result})
+            except HTTPException as exc:
+                queue.put_nowait({"tipo": "error", "datos": {
+                    "status": exc.status_code, "detail": exc.detail}})
+            except Exception:
+                logger.exception("Error inesperado durante el chat")
+                queue.put_nowait({"tipo": "error", "datos": {
+                    "status": 500, "detail": "No se pudo completar la respuesta. Intenta nuevamente."}})
+            finally:
+                queue.put_nowait(None)
+
+        task = asyncio.create_task(producir())
+        try:
+            while (event := await queue.get()) is not None:
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+        finally:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+
+    return StreamingResponse(eventos(), media_type="application/x-ndjson",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+async def ejecutar_chat(req: ChatRequest, emitir=None):
     request_id = uuid4().hex[:8]
     started = perf_counter()
     logger.info("[%s] %s | pregunta=%r", request_id, req.modo, req.pregunta)
@@ -71,6 +110,12 @@ async def chat(req: ChatRequest):
 
     def tool_call(event):
         imprimir_tool_call({**event, "prefijo": request_id})
+        if emitir:
+            emitir("tool_inicio", event)
+
+    def tool_result(event):
+        if emitir:
+            emitir("tool_fin", event)
 
     try:
         if req.modo == "prolog":
@@ -94,7 +139,8 @@ async def chat(req: ChatRequest):
             history = [item for turn in session.turns for item in turn]
             result, turn, trace = await run_turn(
                 app.state.client, app.state.model, history, req.pregunta,
-                reasoning_effort=app.state.effort, on_tool_call=tool_call)
+                reasoning_effort=app.state.effort, on_tool_call=tool_call,
+                on_tool_result=tool_result)
             session.turns.append(turn)
             app.state.sessions[sid] = session
             return finalizar({**result, "sesion": sid, "traza": trace})

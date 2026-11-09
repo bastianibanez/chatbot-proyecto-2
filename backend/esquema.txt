@@ -27,7 +27,7 @@ cantidad_partidos(Anio, Cantidad)
 goles_torneo(Anio, Cantidad)
 ganador_partido(IdPartido, Equipo): considera tanda de penales
 empate_marcador(IdPartido): antes de tanda de penales
-goles_jugador(IdJugador, Anio, Cantidad): sin autogoles
+goles_jugador(IdJugador, Anio, Cantidad): sin autogoles; enumera todos los torneos, incluso con Cantidad=0. Un cero no prueba que el jugador haya participado. Para años con goles, filtra Cantidad>0.
 goleadores(Anio, ListaIdsJugadores, Goles): máximos goleadores de una edición, incluidos empates
 
 Puedes usar los predicados de SWI-Prolog y combinarlos libremente.
