@@ -104,7 +104,10 @@ function actualizarTool(call, grupo) {
   const pre = nodo('pre');
   pre.tabIndex = 0;
   pre.setAttribute('aria-label', 'Consulta Prolog');
-  pre.append(nodo('code', call.argumentos?.consulta || 'No se recibió una consulta válida.'));
+  const consulta = call.argumentos?.consulta;
+  pre.className = 'consulta-prolog';
+  pre.append(typeof consulta === 'string' ? PrologFormato.renderizar(consulta)
+    : nodo('code', 'No se recibió una consulta válida.'));
   const resultados = nodo('div', undefined, 'tool-resultados');
   resultados.tabIndex = 0;
   resultados.setAttribute('role', 'region');
@@ -246,7 +249,8 @@ async function preguntar(pregunta) {
     if (modo === 'llm') sesion = data.sesion;
     respuesta.texto = data.respuesta;
     respuesta.html = data.respuesta_html;
-    estado.textContent = '';
+    respuesta.tipo = data.estado === 'timeout' ? 'bot aviso' : 'bot';
+    estado.textContent = data.estado === 'timeout' ? 'Contexto conservado. Puedes continuar la conversación.' : '';
   } catch (error) {
     if (error.status === 410) sesion = null;
     respuesta.tipo = 'bot error';

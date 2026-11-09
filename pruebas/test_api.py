@@ -249,3 +249,35 @@ def test_stream_http_prolog_y_errores(client, monkeypatch):
     assert not api.app.state.sessions
     result = client.post('/api/chat/stream', json={'modo': 'llm', 'pregunta': 'Hola', 'sesion': 'no-existe'})
     assert json.loads(result.text)['datos']['status'] == 410
+
+
+@pytest.mark.parametrize('streaming', [False, True])
+def test_timeout_guarda_sesion_y_continuacion_reutiliza_las_consultas(client, streaming):
+    from pruebas.test_agent import client_for, response, call, final
+    timeout = api.APITimeoutError(request=httpx.Request('POST', 'https://example.test/responses'))
+    _, models = client_for(response(call(id='consulta-guardada')), timeout, final())
+    api.app.state.client.responses = models
+    if streaming:
+        response = client.post('/api/chat/stream', json={'modo': 'llm', 'pregunta': 'Campeón 2022'})
+        events = [json.loads(line) for line in response.text.splitlines()]
+        assert [e['tipo'] for e in events] == ['tool_inicio', 'tool_fin', 'respuesta']
+        interrupted = events[-1]['datos']
+    else:
+        response = post(client, 'Campeón 2022')
+        interrupted = response.json()
+    assert response.status_code == 200
+    assert interrupted['estado'] == 'timeout'
+    assert interrupted['traza'][0]['resultado']['resultados'] == [{'Equipo': 'argentina'}]
+    sid = interrupted['sesion']
+    session = api.app.state.sessions[sid]
+    assert len(session.turns) == 1
+    assert not session.lock.locked()
+    previous = deepcopy(session.turns[0])
+    continued = post(client, 'continúa', sid).json()
+    assert continued['estado'] == 'respuesta'
+    assert continued['sesion'] == sid
+    assert continued['consultas'] == 0
+    assert len(session.turns) == 2
+    assert models.requests[-1]['input'][:-1] == previous
+    assert any(item.get('call_id') == 'consulta-guardada' and item.get('type') == 'function_call_output'
+               for item in models.requests[-1]['input'])

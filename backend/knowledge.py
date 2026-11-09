@@ -39,7 +39,8 @@ def ejecutar(query: Query) -> dict:
 
 
 def esquema() -> str:
-    return Path(__file__).with_name("esquema.txt").read_text(encoding="utf-8")
+    return (Path(__file__).with_name("esquema.txt").read_text(encoding="utf-8") + "\n\n" +
+            (ROOT / "prolog/kb/dataset/esquema.txt").read_text(encoding="utf-8"))
 
 
 def _execute(payload: dict) -> dict:

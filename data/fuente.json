@@ -1,0 +1,152 @@
+{
+  "repositorio": "jfjelstul/worldcup",
+  "version": "1.2.0",
+  "commit": "35a8667f518b07469182ae16d35574dd0e7a00fb",
+  "archivos": [
+    {
+      "origen": "data-csv/award_winners.csv",
+      "destino": "data/raw/award_winners.csv",
+      "sha1": "89ca8f457cb5fd2b92f904ddec2349ddedfb6a34"
+    },
+    {
+      "origen": "data-csv/awards.csv",
+      "destino": "data/raw/awards.csv",
+      "sha1": "498682e4011880b998aa63fe97885e9d5983d634"
+    },
+    {
+      "origen": "data-csv/bookings.csv",
+      "destino": "data/raw/bookings.csv",
+      "sha1": "0f05623b0701860beb75e29c82803dbd5b79c11c"
+    },
+    {
+      "origen": "data-csv/confederations.csv",
+      "destino": "data/raw/confederations.csv",
+      "sha1": "ba11b2b98a060655a6f6d3f56b945f53a1b29f20"
+    },
+    {
+      "origen": "data-csv/goals.csv",
+      "destino": "data/raw/goals.csv",
+      "sha1": "ca81f1c04d50cbf9b6b034921a0e462839947cf7"
+    },
+    {
+      "origen": "data-csv/group_standings.csv",
+      "destino": "data/raw/group_standings.csv",
+      "sha1": "b7e19f0bd85195d5fc5a7850332caaf440fc95c4"
+    },
+    {
+      "origen": "data-csv/groups.csv",
+      "destino": "data/raw/groups.csv",
+      "sha1": "fcbcbbd660b5f62c6c08c27237ed9fedc403c824"
+    },
+    {
+      "origen": "data-csv/host_countries.csv",
+      "destino": "data/raw/host_countries.csv",
+      "sha1": "c9371755d669e98e096c9f193560b590713061bd"
+    },
+    {
+      "origen": "data-csv/manager_appearances.csv",
+      "destino": "data/raw/manager_appearances.csv",
+      "sha1": "e7ac4153e273616a1325614170aac453404082d7"
+    },
+    {
+      "origen": "data-csv/manager_appointments.csv",
+      "destino": "data/raw/manager_appointments.csv",
+      "sha1": "0109c864cce63ca6c7c94727680055dc5d407af6"
+    },
+    {
+      "origen": "data-csv/managers.csv",
+      "destino": "data/raw/managers.csv",
+      "sha1": "5b9adbfa0efb6e157790f7ca5912d510f1f243a8"
+    },
+    {
+      "origen": "data-csv/matches.csv",
+      "destino": "data/raw/matches.csv",
+      "sha1": "d52fef59bad79efe13a5d862d9c97519bdd19dc5"
+    },
+    {
+      "origen": "data-csv/penalty_kicks.csv",
+      "destino": "data/raw/penalty_kicks.csv",
+      "sha1": "205cd19e54d9739f10399d045eb4c7cbf43774eb"
+    },
+    {
+      "origen": "data-csv/player_appearances.csv",
+      "destino": "data/raw/player_appearances.csv",
+      "sha1": "b0c51687229cf10949823a84a24cb92ecaeb4ee2"
+    },
+    {
+      "origen": "data-csv/players.csv",
+      "destino": "data/raw/players.csv",
+      "sha1": "a9ca1899ae6d0dae9908d59d3c5ac2b0b97ff91c"
+    },
+    {
+      "origen": "data-csv/qualified_teams.csv",
+      "destino": "data/raw/qualified_teams.csv",
+      "sha1": "a75e548507e8374b9504b69e71ce9c1ee586e86d"
+    },
+    {
+      "origen": "data-csv/referee_appearances.csv",
+      "destino": "data/raw/referee_appearances.csv",
+      "sha1": "a9882bb9594c533122de766944f41c9912a8c248"
+    },
+    {
+      "origen": "data-csv/referee_appointments.csv",
+      "destino": "data/raw/referee_appointments.csv",
+      "sha1": "26f05a1dde462932e835b04207279ed435fab59d"
+    },
+    {
+      "origen": "data-csv/referees.csv",
+      "destino": "data/raw/referees.csv",
+      "sha1": "c89e314937b23c5e48fcbb8c393a3112bb83ad08"
+    },
+    {
+      "origen": "data-csv/squads.csv",
+      "destino": "data/raw/squads.csv",
+      "sha1": "4874937b5713eef0e1047d13ac26881f29f62eca"
+    },
+    {
+      "origen": "data-csv/stadiums.csv",
+      "destino": "data/raw/stadiums.csv",
+      "sha1": "47e39cf5678bf4fb2a3bd5c5dfc476826f170f00"
+    },
+    {
+      "origen": "data-csv/substitutions.csv",
+      "destino": "data/raw/substitutions.csv",
+      "sha1": "f9bc5a931d63bad8e504cd709247727247bebc1c"
+    },
+    {
+      "origen": "data-csv/team_appearances.csv",
+      "destino": "data/raw/team_appearances.csv",
+      "sha1": "eb416ee8680c2871cf64932bf5dc3546d28f25fa"
+    },
+    {
+      "origen": "data-csv/teams.csv",
+      "destino": "data/raw/teams.csv",
+      "sha1": "eb4b0a2f2c9f8031830ac22548137c01c5338428"
+    },
+    {
+      "origen": "data-csv/tournament_stages.csv",
+      "destino": "data/raw/tournament_stages.csv",
+      "sha1": "ce6d2c3bf9148a4af464dfc8408da0a89fa39165"
+    },
+    {
+      "origen": "data-csv/tournament_standings.csv",
+      "destino": "data/raw/tournament_standings.csv",
+      "sha1": "7c327c70fccf62b736e4a677ed531ff3e27bc1ad"
+    },
+    {
+      "origen": "data-csv/tournaments.csv",
+      "destino": "data/raw/tournaments.csv",
+      "sha1": "057209fb379c6df18427efa360a45f847be67398"
+    },
+    {
+      "origen": "codebook/csv/datasets.csv",
+      "destino": "data/codebook/datasets.csv",
+      "sha1": "ebf3751151bb239c785321596933400066e526a8"
+    },
+    {
+      "origen": "codebook/csv/variables.csv",
+      "destino": "data/codebook/variables.csv",
+      "sha1": "aac5ea042fb26f423b4bd4e32951c8fa6f8c8cec"
+    }
+  ]
+}

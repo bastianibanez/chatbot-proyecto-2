@@ -5,12 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MundialBot</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="prolog-format.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
   <header>
     <h1>MundialBot</h1>
-    <p>Mundiales masculinos · 1930–2022</p>
+    <p>Mundiales FIFA · Masculinos y femeninos</p>
   </header>
   <main>
     <aside aria-labelledby="titulo-ejemplos">
@@ -29,7 +30,7 @@
         <div class="chat-controles">
           <label class="sr-only" for="modo">Modo de respuesta</label>
           <select id="modo">
-            <option value="prolog">Prolog</option>
+            <option value="prolog" title="Consultas deterministas sobre mundiales masculinos">Prolog</option>
             <option value="llm" selected>LLM</option>
           </select>
           <button id="limpiar" type="button">Limpiar</button>

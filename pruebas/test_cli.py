@@ -171,3 +171,16 @@ def test_configuracion_timeout_y_cierre(monkeypatch):
     assert captured["timeout"] == 60
     assert captured["max_retries"] == 0
     assert captured["closed"]
+
+
+def test_cli_preserva_resultados_tras_timeout_del_proveedor(monkeypatch, capsys):
+    from pruebas.test_agent import client_for, response, call, final
+    timeout = cli.APITimeoutError(request=httpx.Request('POST', 'https://example.test/responses'))
+    client, models = client_for(response(call()), timeout, final())
+    entradas = iter(['Campeón 2022', 'continúa', '/salir'])
+    monkeypatch.setattr('builtins.input', lambda _: next(entradas))
+    asyncio.run(cli.conversar(client, 'simulado'))
+    output = capsys.readouterr().out
+    assert 'Conservé la pregunta' in output
+    assert 'Argentina fue campeón' in output
+    assert any(item.get('type') == 'function_call_output' for item in models.requests[-1]['input'])

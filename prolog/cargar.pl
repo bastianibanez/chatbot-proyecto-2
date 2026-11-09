@@ -11,6 +11,7 @@
 :- ensure_loaded(kb/goles).
 :- ensure_loaded(kb/jugadores).
 :- ensure_loaded(kb/premios).
+:- ensure_loaded(dataset).
 
 % Hechos agregados a mano.
 :- ensure_loaded(kb_manual).

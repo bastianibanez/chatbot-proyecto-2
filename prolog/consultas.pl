@@ -37,10 +37,14 @@ consulta_fila(Vars, Dict) :-
 
 consulta_valor(V, null) :- var(V), !.
 consulta_valor(V, V) :- (string(V); atom(V); integer(V); float(V)), !.
+consulta_valor(V, J) :- is_dict(V), !,
+    dict_pairs(V, _, Pares), maplist(consulta_par, Pares, JSON), dict_pairs(J, json, JSON).
 consulta_valor(V, J) :- is_list(V), !, maplist(consulta_valor,V,J).
 consulta_valor(V, _{functor:F, argumentos:Args}) :-
     compound(V), !, V =.. [F|Vs], maplist(consulta_valor,Vs,Args).
 consulta_valor(V, J) :- term_string(V,J).
+
+consulta_par(N-V, N-J) :- consulta_valor(V, J).
 
 consulta_error(time_limit_exceeded, _{estado:limite, detalle:"La consulta superó 30 segundos. Simplifícala."}) :- !.
 consulta_error(resultado_excesivo, _{estado:limite, detalle:"El resultado es demasiado grande. Usa nombres con _ inicial para listas y variables intermedias (por ejemplo _Filas, _Ascendente, _Ordenadas) y devuelve solo los datos finales necesarios. No se devolvieron resultados parciales."}) :- !.

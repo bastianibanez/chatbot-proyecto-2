@@ -69,6 +69,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .tool-detalle { padding: 0 0 14px 20px; }
 .tool-detalle h3 { margin: 12px 0 6px; font-size: 12px; font-weight: 600; color: #c9d1cb; }
 .tool-detalle pre { margin: 6px 0 14px; color: #d8e3d2; line-height: 1.7; }
+.tool-detalle .consulta-prolog { white-space: pre; overflow-wrap: normal; tab-size: 2; }
+.pl-predicado { color: #b6caa0; }
+.pl-variable { color: #b3cce6; }
+.pl-texto { color: #dfc092; }
+.pl-numero { color: #c9afe0; }
+.pl-operador { color: #d0d6d1; }
+.pl-comentario { color: #94a096; font-style: italic; }
 .tool-detalle pre, .tool-resultados { max-height: min(240px, 35dvh); overflow: auto; scrollbar-width: thin; scrollbar-color: #4d5b50 transparent; }
 .tool-detalle pre:focus-visible, .tool-resultados:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
 .tool-resultados .resultados-tabla { overflow: visible; }
@@ -83,6 +90,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .tool-detalle dt { font-weight: 600; }
 .tool-detalle dd { margin: 0 0 6px 12px; }
 .error { color: #e7b5a8; }
+.aviso > .markdown { color: #dfc092; }
 .chat-bottom { padding: 16px 20px 20px; }
 #estado { margin: 0 4px 12px; color: var(--secundario); font-size: 13px; }
 #estado:empty { display: none; }

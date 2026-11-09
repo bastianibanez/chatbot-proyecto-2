@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Convierte la Fjelstul World Cup Database (CSV) en hechos Prolog.
 
-Solo considera los mundiales masculinos (1930-2022). Genera un archivo .pl por
-tema en prolog/kb/. Esos archivos son generados: las correcciones o datos
-nuevos se agregan en prolog/kb_manual.pl, no acá.
+Genera las vistas masculinas originales y todas las tablas, filas y columnas
+del dataset en prolog/kb/dataset/. Los archivos .pl son generados: las
+correcciones manuales se agregan en prolog/kb_manual.pl.
 
 Uso:
     python3 scripts/csv_a_prolog.py
@@ -12,6 +12,7 @@ Uso:
 
 import argparse
 import csv
+import json
 import sys
 import unicodedata
 from collections import Counter, defaultdict
@@ -115,6 +116,65 @@ def escribir_pl(ruta, descripcion, firmas, secciones):
         partes.append(f"\n% {comentario}\n")
         partes.append("\n".join(lineas) + "\n")
     ruta.write_text("".join(partes), encoding="utf-8")
+
+
+def convertir_dataset(datos, codebook, salida):
+    """Conservar todas las filas y columnas, con tipos del diccionario oficial."""
+    tablas = leer_csv(codebook, "datasets")
+    variables = leer_csv(codebook, "variables")
+    por_tabla = defaultdict(list)
+    for variable in variables:
+        por_tabla[variable["dataset"]].append(variable)
+    destino = salida / "dataset"
+    destino.mkdir(parents=True, exist_ok=True)
+    cargas, catalogo, esquema, resumen = [], [], [], {}
+    for tabla in tablas:
+        nombre = tabla["dataset"]
+        columnas = por_tabla[nombre]
+        with (datos / f"{nombre}.csv").open(encoding="utf-8", newline="") as archivo:
+            reader = csv.DictReader(archivo)
+            campos = reader.fieldnames
+            if campos != [col["variable"] for col in columnas]:
+                raise ValueError(f"Columnas de {nombre} no coinciden con el diccionario oficial")
+            filas = list(reader)
+        predicado = "datos_" + nombre
+        with (destino / f"{nombre}.pl").open("w", encoding="utf-8") as archivo:
+            archivo.write(":- encoding(utf8).\n" + ENCABEZADO)
+            archivo.write(f":- dynamic({predicado}/1).\n\n")
+            for fila in filas:
+                valores = []
+                for col in columnas:
+                    campo, tipo = col["variable"], col["type"]
+                    valor = fila[campo]
+                    if tipo in {"integer", "boolean"}:
+                        try:
+                            valor_pl = str(int(valor))
+                        except ValueError:
+                            # Conservar los marcadores originales de datos ausentes.
+                            valor_pl = cadena(valor)
+                    else:
+                        valor_pl = cadena(valor)
+                    valores.append(f"{campo}: {valor_pl}")
+                archivo.write(f"{predicado}(fila{{{','.join(valores)}}}).\n")
+        cargas.append(f":- ensure_loaded({nombre}).")
+        catalogo.append(hecho("tabla_dataset", nombre,
+                              "[" + ",".join(campos) + "]", len(filas)))
+        descripcion = tabla.get("description", "")
+        campos_tipos = ", ".join(f"{c['variable']}:{c['type']}" for c in columnas)
+        esquema.append(f"{nombre} ({len(filas)} filas): {descripcion}\nCampos: {campos_tipos}")
+        if "tournament_id" in campos:
+            torneos = sorted({fila["tournament_id"] for fila in filas})
+            esquema[-1] += "\nTorneos presentes: " + ", ".join(torneos)
+        resumen[nombre] = len(filas)
+    (destino / "cargar.pl").write_text(
+        ":- encoding(utf8).\n" + ENCABEZADO + "\n".join(cargas) +
+        "\n\n:- dynamic(tabla_dataset/3).\n" + "\n".join(catalogo) + "\n", encoding="utf-8")
+    (destino / "esquema.txt").write_text(
+        "Tablas completas y campos del dataset original (sin filtrar):\n\n" +
+        "\n\n".join(esquema) + "\n", encoding="utf-8")
+    (destino / "resumen.json").write_text(
+        json.dumps(resumen, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return sum(resumen.values())
 
 
 # ---------------------------------------------------------------
@@ -334,6 +394,7 @@ def main():
         description="Convierte la Fjelstul World Cup Database (CSV) en hechos Prolog.")
     parser.add_argument("--datos", type=Path, default=RAIZ / "data" / "raw")
     parser.add_argument("--manual", type=Path, default=RAIZ / "data" / "manual")
+    parser.add_argument("--codebook", type=Path, default=RAIZ / "data" / "codebook")
     parser.add_argument("--salida", type=Path, default=RAIZ / "prolog" / "kb")
     args = parser.parse_args()
     args.salida.mkdir(parents=True, exist_ok=True)
@@ -347,6 +408,7 @@ def main():
         "goles": conv.goles_pl(args.salida),
         "jugadores": conv.jugadores_pl(args.salida),
         "premios": conv.premios_pl(args.salida),
+        "filas_dataset": convertir_dataset(args.datos, args.codebook, args.salida),
     }
     for clave, n in resumen.items():
         print(f"{clave:>10}: {n}")

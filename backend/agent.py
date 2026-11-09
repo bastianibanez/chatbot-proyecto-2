@@ -6,6 +6,7 @@ from copy import deepcopy
 from pathlib import Path
 from time import perf_counter
 
+from openai import APITimeoutError, APIStatusError
 from pydantic import ValidationError
 
 from .contracts import Query, RespuestaFinal
@@ -39,38 +40,77 @@ def crear_herramienta() -> dict:
     }
 
 
+class _Turn:
+    """Estado del turno, conservado también si expira una espera."""
+
+    def __init__(self, previous, question):
+        self.contents = deepcopy(previous)
+        self.start = len(self.contents)
+        self.contents.append({"role": "user", "content": question})
+        self.trace = []
+        self.used = 0
+
+    def finish(self, text, status, original=None):
+        self.contents.extend(original if original is not None else [
+            {"role": "assistant", "content": text}])
+        return ({"respuesta": text, "estado": status, "consultas": self.used},
+                self.contents[self.start:], self.trace)
+
+    def timeout(self):
+        # Responses exige un resultado por cada call_id, incluso si un lote quedó
+        # interrumpido antes de ejecutar todas sus llamadas.
+        current = self.contents[self.start:]
+        answered = {item["call_id"] for item in current if item.get("type") == "function_call_output"}
+        for item in current:
+            if item.get("type") == "function_call" and item["call_id"] not in answered:
+                self.contents.append({"type": "function_call_output", "call_id": item["call_id"],
+                    "output": json.dumps({"estado": "no_ejecutada", "detalle":
+                        "El turno agotó su tiempo antes de ejecutar esta llamada. No hay resultado."})})
+        return self.finish(
+            "Se agotó el tiempo de este turno. Conservé la pregunta, las consultas y sus "
+            "resultados disponibles. Escribe **continúa** para retomar desde ahí.", "timeout")
+
+
+def _hay_evidencia(contents):
+    for item in contents:
+        if item.get("type") == "function_call_output":
+            try:
+                result = json.loads(item["output"])
+            except (ValueError, TypeError):
+                continue
+            if isinstance(result, dict) and result.get("estado") in {"ok", "sin_datos"}:
+                return True
+    return False
+
+
 async def run_turn(client, model, previous, question, execute=prolog, *, timeout=TURN_TIMEOUT,
                    on_tool_call=None, on_tool_result=None, reasoning_effort=REASONING_EFFORT):
     """Devolver (resultado, turno_completo, traza), sin modificar previous.
 
-    client es un AsyncOpenAI. previous contiene los items completos de Responses,
-    incluidos razonamiento cifrado, llamadas y resultados. El llamador conserva
-    turnos completos; los fallos técnicos se propagan y no son sin_datos.
-    on_tool_call recibe nombre y argumentos antes de validar y ejecutar cada llamada.
-    on_tool_result recibe el resultado y la duración al terminar cada llamada.
+    Un timeout devuelve el turno parcial con estado timeout y protocolo completo,
+    listo para conservarlo en la conversación. Otros fallos técnicos se propagan.
+    Los callbacks notifican el inicio y resultado de cada llamada.
     """
     if not isinstance(question, str) or not question.strip():
         raise ValueError("La pregunta debe ser un texto no vacío")
-    async with asyncio.timeout(timeout):
-        return await _run_turn(client, model, previous, question, execute, on_tool_call,
-                               on_tool_result, reasoning_effort)
+    turn = _Turn(previous, question)
+    try:
+        async with asyncio.timeout(timeout):
+            return await _run_turn(client, model, turn, execute, on_tool_call,
+                                   on_tool_result, reasoning_effort)
+    except (TimeoutError, APITimeoutError):
+        return turn.timeout()
+    except APIStatusError as exc:
+        if exc.status_code not in {408, 504}:
+            raise
+        return turn.timeout()
 
 
-async def _run_turn(client, model, previous, question, execute, on_tool_call, on_tool_result, reasoning_effort):
-    contents = deepcopy(previous)
-    start = len(contents)
-    contents.append({"role": "user", "content": question})
+async def _run_turn(client, model, turn, execute, on_tool_call, on_tool_result, reasoning_effort):
+    contents = turn.contents
+    trace = turn.trace
+    finish = turn.finish
     herramienta = crear_herramienta()
-    trace = []
-    used = 0
-
-    def finish(text, status, original=None):
-        if original is not None:
-            contents.extend(original)
-        else:
-            contents.append({"role": "assistant", "content": text})
-        return ({"respuesta": text, "estado": status, "consultas": used},
-                contents[start:], trace)
 
     for _ in range(MAX_TOOLS + 1):
         response = await client.responses.create(
@@ -79,7 +119,7 @@ async def _run_turn(client, model, previous, question, execute, on_tool_call, on
             reasoning={"effort": reasoning_effort},
             input=contents,
             tools=[herramienta],
-            tool_choice="auto" if used < MAX_TOOLS else "none",
+            tool_choice="auto" if turn.used < MAX_TOOLS else "none",
             text={"format": {"type": "json_schema", "name": "respuesta_final",
                              "schema": RespuestaFinal.model_json_schema(), "strict": True}},
             store=False,
@@ -95,25 +135,23 @@ async def _run_turn(client, model, previous, question, execute, on_tool_call, on
                 final = RespuestaFinal.model_validate_json(response.output_text)
             except ValidationError:
                 return finish("No pude interpretar la respuesta. Intenta reformular la pregunta.", "error")
-            if final.tipo == "respuesta" and not any(
-                entry["resultado"].get("estado") in {"ok", "sin_datos"} for entry in trace
-            ):
+            if final.tipo == "respuesta" and not _hay_evidencia(contents):
                 return finish("No pude respaldar esa respuesta con los datos de Prolog. "
                               "Intenta reformular la pregunta.", "error")
             return finish(final.texto, final.tipo, original=output)
 
-        if len(calls) > MAX_TOOLS - used:
+        if len(calls) > MAX_TOOLS - turn.used:
             return finish("Alcancé el límite de consultas. Divide la pregunta en partes.", "limite")
         contents.extend(output)
         for call in calls:
-            used += 1
+            turn.used += 1
             started = perf_counter()
             try:
                 arguments = json.loads(call.arguments)
             except ValueError:
                 arguments = call.arguments
             if on_tool_call is not None:
-                on_tool_call({"numero": used, "herramienta": call.name,
+                on_tool_call({"numero": turn.used, "herramienta": call.name,
                               "argumentos": deepcopy(arguments)})
             try:
                 if call.name != "consultar_mundiales":
@@ -128,15 +166,21 @@ async def _run_turn(client, model, previous, question, execute, on_tool_call, on
                 try:
                     result = await execute({"modo": "consulta", "argumentos": query.model_dump()})
                 except (Exception, asyncio.CancelledError) as exc:
+                    interrupted = isinstance(exc, (asyncio.CancelledError, TimeoutError, APITimeoutError))
+                    result = {"estado": "interrumpida" if interrupted else "error", "detalle":
+                        "Se dejó de esperar esta consulta y no se recibió su resultado. "
+                        "Podría seguir ejecutándose en Prolog; no asumas éxito ni ausencia de datos."
+                        if interrupted else "No se pudo ejecutar la consulta Prolog."}
+                    entry = {"numero": turn.used, "herramienta": call.name,
+                             "argumentos": deepcopy(arguments), "resultado": result,
+                             "duracion_ms": round((perf_counter() - started) * 1000)}
+                    trace.append(entry)
+                    contents.append({"type": "function_call_output", "call_id": call.call_id,
+                                     "output": json.dumps(result, ensure_ascii=False)})
                     if on_tool_result is not None:
-                        on_tool_result({"numero": used, "herramienta": call.name,
-                            "argumentos": deepcopy(arguments),
-                            "duracion_ms": round((perf_counter() - started) * 1000),
-                            "resultado": {"estado": "interrumpida" if isinstance(exc, asyncio.CancelledError) else "error",
-                                "detalle": "La consulta se interrumpió antes de recibir un resultado."
-                                    if isinstance(exc, asyncio.CancelledError) else "No se pudo ejecutar la consulta Prolog."}})
+                        on_tool_result(deepcopy(entry))
                     raise
-            entry = {"numero": used, "herramienta": call.name, "argumentos": arguments,
+            entry = {"numero": turn.used, "herramienta": call.name, "argumentos": arguments,
                      "resultado": result, "duracion_ms": round((perf_counter() - started) * 1000)}
             trace.append(entry)
             if on_tool_result is not None:

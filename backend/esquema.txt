@@ -1,4 +1,43 @@
-Hechos y reglas de la base de Mundiales:
+Acceso al dataset completo (27 tablas, todas sus filas y columnas):
+
+registro(Tabla, Filtros): Tabla es un átomo de la lista de tablas al final. Filtros es
+un dict PARCIAL con las columnas que quieres filtrar o devolver. Solo se comparan
+las columnas indicadas; sus variables reciben los valores encontrados.
+Ejemplo: registro(squads, _{tournament_id:"WC-2022", team_name:"Argentina", player_id:Jugador, family_name:Apellido}).
+Si Filtros es una variable se devuelve la fila completa como objeto JSON.
+tabla_dataset(Tabla, Columnas, Filas): permite explorar el catálogo.
+
+Tipos: integer y boolean son números (boolean usa 0/1); text, enum, IDs y fechas
+son STRINGS con comillas dobles, conservando el contenido original y sus mayúsculas.
+Las fechas son "YYYY-MM-DD". Los valores ausentes conservan marcadores de la fuente
+como "not applicable", "not available" o valores numéricos centinela; no los inventes.
+IDs: "WC-2022" identifica un torneo masculino, "WC-2019" uno femenino. Ambos usan
+el prefijo WC; tournament_name distingue "Men's" y "Women's". Consulta tournaments
+para conocer los disponibles. Usa tournament_id en uniones y filtros,
+no solo el año. Los identificadores player_id, team_id, match_id, manager_id,
+referee_id y stadium_id permiten relacionar las tablas.
+Los nombres originales están en inglés; usa los campos de nombre disponibles.
+
+Ejemplos:
+- Jugadores convocados: registro(squads, _{tournament_id:"WC-2022", team_name:"Argentina", given_name:Nombre, family_name:Apellido}).
+- Partidos de un jugador: registro(players, _{player_id:_J, family_name:"Messi"}), registro(player_appearances, _{player_id:_J, tournament_id:"WC-2022", match_id:Partido}).
+- Campeona femenina: registro(tournaments, _{tournament_id:"WC-2019", winner:Campeona}).
+- Tarjetas: registro(bookings, _{tournament_id:"WC-2022", team_name:"Argentina", family_name:Apellido, yellow_card:Amarilla, red_card:Roja}).
+
+Convocatoria (squads) no equivale a jugar (player_appearances): un suplente que no
+ingresó no tiene aparición. Tampoco equivale a marcar goles (goals).
+No cuentes filas de substitutions como cambios sin filtrar: hay una fila por
+jugador saliente y otra por entrante; usa coming_on=1 para contar cambios.
+penalty_kicks contiene tandas, separadas de los goles durante el partido.
+Filtra el torneo antes de agregar datos para no mezclar competiciones.
+Las tablas tienen distinta cobertura histórica: revisa los torneos presentes en
+su descripción. Si un torneo no está cubierto, ausencia de registros no equivale
+a cero eventos o a que un jugador no participó.
+
+Vistas y reglas originales: SOLO Mundiales MASCULINOS 1930–2022.
+Sus IDs son átomos en español y slugs; no son los IDs originales usados por registro/2.
+Para consultar el dataset completo usa registro/2. Las vistas se conservan para el
+chat determinista y las consultas existentes:
 
 torneo(Anio, CantidadEquipos)
 sede(Anio, Equipo): país anfitrión; una fila por país

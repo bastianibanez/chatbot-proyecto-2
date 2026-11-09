@@ -6,6 +6,8 @@ from copy import deepcopy
 from types import SimpleNamespace
 
 import pytest
+import httpx
+from openai import APITimeoutError, APIStatusError
 from openai.types.responses import (ResponseFunctionToolCall, ResponseReasoningItem,
                                     ResponseOutputMessage, ResponseOutputText)
 
@@ -41,7 +43,10 @@ class FakeModels:
 
     async def create(self, **kwargs):
         self.requests.append(deepcopy(kwargs))
-        return next(self.responses)
+        item = next(self.responses)
+        if isinstance(item, Exception):
+            raise item
+        return item
 
 
 def client_for(*responses):
@@ -219,13 +224,14 @@ def test_last_tool_can_be_followed_by_final_answer():
     assert models.requests[-1]["tool_choice"] == "none"
 
 
-def test_context_is_preserved_but_old_evidence_is_not_reused():
+def test_context_is_preserved_and_evidence_can_be_reused():
     first, _ = client_for(response(call()), final())
     _, previous, _ = asyncio.run(run_turn(first, "fake", [], "Campeón 2022", execute=success))
     snapshot = deepcopy(previous)
     second, models = client_for(final())
-    result, turn, _ = asyncio.run(run_turn(second, "fake", previous, "¿Y en 2018?"))
-    assert result["estado"] == "error"
+    result, turn, _ = asyncio.run(run_turn(second, "fake", previous, "Resume lo anterior"))
+    assert result["estado"] == "respuesta"
+    assert result["consultas"] == 0
     assert models.requests[0]["input"][:-1] == snapshot
     assert previous == snapshot
     assert len(turn) == 2
@@ -256,8 +262,11 @@ def test_turn_timeout():
         async def create(self, **kwargs):
             await asyncio.Event().wait()
     client = SimpleNamespace(responses=SlowModels())
-    with pytest.raises(TimeoutError):
-        asyncio.run(run_turn(client, "fake", [], "Pregunta", timeout=0.01))
+    result, turn, trace = asyncio.run(run_turn(client, "fake", [], "Pregunta", timeout=0.01))
+    assert result["estado"] == "timeout"
+    assert turn[0] == {"role": "user", "content": "Pregunta"}
+    assert "continúa" in turn[-1]["content"]
+    assert trace == []
 
 
 def test_loop_with_real_prolog():
@@ -348,8 +357,116 @@ def test_timeout_de_turno_notifica_tool_interrumpida():
     events = []
     async def execute(payload):
         await asyncio.Event().wait()
-    with pytest.raises(TimeoutError):
-        asyncio.run(run_turn(client, 'fake', [], 'Pregunta', execute=execute, timeout=0.02,
-                             on_tool_result=events.append))
+    result, turn, trace = asyncio.run(run_turn(client, 'fake', [], 'Pregunta', execute=execute, timeout=0.02,
+                                              on_tool_result=events.append))
+    assert result['estado'] == 'timeout'
+    assert trace[0]['resultado']['estado'] == 'interrumpida'
+    assert json.loads(turn[-2]['output'])['estado'] == 'interrumpida'
     assert len(events) == 1
     assert events[0]['resultado']['estado'] == 'interrumpida'
+
+
+def test_agente_consulta_dataset_completo_mediante_la_misma_tool():
+    consulta = 'registro(tournaments, _{tournament_id:"WC-2019",winner:Campeona})'
+    client, _ = client_for(response(call({'consulta': consulta,
+        'descripcion': 'Buscar campeona del Mundial femenino'})),
+        final(texto='Estados Unidos ganó el Mundial femenino de 2019.'))
+    result, _, trace = asyncio.run(run_turn(client, 'fake', [], '¿Quién ganó el femenino de 2019?'))
+    assert result['estado'] == 'respuesta'
+    assert trace[0]['resultado']['resultados'] == [{'Campeona': 'United States'}]
+
+
+@pytest.mark.parametrize('error', [
+    APITimeoutError(request=httpx.Request('POST', 'https://example.test/responses')),
+    APIStatusError('detalle privado', response=httpx.Response(408,
+        request=httpx.Request('POST', 'https://example.test/responses')), body={}),
+    APIStatusError('detalle privado', response=httpx.Response(504,
+        request=httpx.Request('POST', 'https://example.test/responses')), body={}),
+])
+def test_timeout_proveedor_conserva_consultas_y_continua_sin_repetir(error):
+    reasoning = ResponseReasoningItem(id='rs_timeout', type='reasoning', summary=[], encrypted_content='encrypted')
+    client, models = client_for(response(reasoning, call()), error, final())
+    result, turn, trace = asyncio.run(run_turn(client, 'fake', [], 'Campeón 2022', execute=success))
+    assert result['estado'] == 'timeout'
+    assert trace[0]['resultado']['estado'] == 'ok'
+    assert turn[1]['encrypted_content'] == 'encrypted'
+    assert 'detalle privado' not in result['respuesta']
+    previous = deepcopy(turn)
+    continued, _, new_trace = asyncio.run(run_turn(client, 'fake', previous, 'continúa', execute=success))
+    assert continued['estado'] == 'respuesta'
+    assert continued['consultas'] == 0
+    assert not new_trace
+    assert models.requests[-1]['input'][:-1] == turn
+    assert previous == turn
+
+
+def test_timeout_global_durante_respuesta_preserva_resultados_completados():
+    class Models:
+        def __init__(self):
+            self.requests = 0
+        async def create(self, **kwargs):
+            self.requests += 1
+            if self.requests == 1:
+                return response(call())
+            await asyncio.Event().wait()
+    client = SimpleNamespace(responses=Models())
+    result, turn, trace = asyncio.run(run_turn(client, 'fake', [], 'Pregunta', execute=success, timeout=0.02))
+    assert result['estado'] == 'timeout'
+    assert trace[0]['resultado']['estado'] == 'ok'
+    assert json.loads(turn[-2]['output'])['estado'] == 'ok'
+
+
+def test_timeout_en_lote_cierra_todas_las_llamadas_sin_inventar_resultados():
+    client, _ = client_for(response(call(id='lista'), call(id='activa'), call(id='pendiente')))
+    executions = []
+    async def execute(payload):
+        executions.append(payload)
+        if len(executions) == 1:
+            return await success(payload)
+        await asyncio.Event().wait()
+    result, turn, trace = asyncio.run(run_turn(client, 'fake', [], 'Pregunta', execute=execute, timeout=0.02))
+    assert result['estado'] == 'timeout'
+    assert result['consultas'] == 2
+    results = {item['call_id']: json.loads(item['output']) for item in turn
+               if item.get('type') == 'function_call_output'}
+    assert set(results) == {'lista', 'activa', 'pendiente'}
+    assert results['lista']['estado'] == 'ok'
+    assert results['activa']['estado'] == 'interrumpida'
+    assert results['pendiente']['estado'] == 'no_ejecutada'
+    assert len(trace) == 2
+    followup, models = client_for(final())
+    continued, _, _ = asyncio.run(run_turn(followup, 'fake', turn, 'continúa', execute=success))
+    assert continued['estado'] == 'respuesta'
+    assert models.requests[0]['input'][:-1] == turn
+
+
+def test_cancelacion_externa_no_se_confunde_con_timeout():
+    async def scenario():
+        started = asyncio.Event()
+        class Models:
+            async def create(self, **kwargs):
+                started.set()
+                await asyncio.Event().wait()
+        client = SimpleNamespace(responses=Models())
+        task = asyncio.create_task(run_turn(client, 'fake', [], 'Pregunta'))
+        await started.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    asyncio.run(scenario())
+
+
+def test_timeout_de_prolog_se_informa_al_modelo_para_corregir_en_el_mismo_turno():
+    client, models = client_for(response(call(id='lenta')), response(call(id='corregida')), final())
+    executions = []
+    async def execute(payload):
+        executions.append(payload)
+        if len(executions) == 1:
+            return {'estado': 'limite', 'detalle': 'La consulta superó 30 segundos. Simplifícala.'}
+        return await success(payload)
+    result, _, trace = asyncio.run(run_turn(client, 'fake', [], 'Pregunta', execute=execute))
+    assert result['estado'] == 'respuesta'
+    assert [item['resultado']['estado'] for item in trace] == ['limite', 'ok']
+    timeout = json.loads(models.requests[1]['input'][-1]['output'])
+    assert timeout['estado'] == 'limite'
+    assert '30 segundos' in timeout['detalle']

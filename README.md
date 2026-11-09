@@ -1,6 +1,8 @@
 # MundialBot - Proyecto 2
 
-Chatbot de Copas del Mundo FIFA masculinas (1930–2022), con modo Prolog y modo LLM.
+Chatbot de Copas del Mundo FIFA con modo Prolog y modo LLM. El LLM consulta el
+dataset completo: masculinos 1930–2022 y femeninos 1991–2019. El modo determinista
+conserva las preguntas y reglas originales sobre los masculinos.
 
 ## Ejecutar la web y la API
 
@@ -24,6 +26,10 @@ llamada a Prolog aparece en tiempo real con una descripción breve; al desplegar
 se muestran la consulta y sus resultados como tablas o listas. Al terminar la
 respuesta, las llamadas quedan colapsadas con su estado y duración. Recargar la
 página inicia un chat nuevo; reiniciar el backend borra todas las sesiones.
+
+Las consultas se muestran con sangría, saltos de línea y colores de sintaxis.
+Este formato solo afecta la presentación; el código enviado a Prolog conserva
+su contenido original. Consulta y resultados tienen altura máxima y scroll.
 
 En la terminal del servidor se registra cada pregunta, sesión, modelo, estado y
 duración. Las tool calls aparecen con Rich al recibirlas, antes de ejecutarse, y
@@ -112,6 +118,14 @@ consulta se devuelven al modelo para que los corrija; los fallos técnicos no se
 interpretan como ausencia de datos. El conocimiento general del modelo puede
 ayudar a clasificar o interpretar los datos deportivos obtenidos de Prolog.
 
+Si se agota el tiempo del turno o de OpenAI (incluidos HTTP 408/504), se guarda la
+pregunta junto con las llamadas y resultados recibidos. La respuesta lleva estado
+`timeout` y conserva la sesión: se puede escribir **continúa** tanto en la web
+como en la CLI. El agente recibe el contexto y reutiliza los resultados disponibles.
+Las llamadas interrumpidas o todavía no ejecutadas quedan identificadas como tales,
+sin inventar resultados. Estos turnos también cuentan dentro de los diez turnos de
+memoria; reiniciar el servidor o limpiar la conversación elimina ese contexto.
+
 ```sh
 python -m pytest pruebas -q
 ```
@@ -119,13 +133,63 @@ python -m pytest pruebas -q
 La integración de OpenAI está disponible por CLI y por la API web. `backend/esquema.txt` describe los hechos y reglas al modelo;
 es documentación, no una restricción sobre las consultas que puede ejecutar.
 
+## Dataset completo
+
+Se incluyen las 27 tablas originales, sus 410 columnas (sumadas entre tablas) y
+81.200 registros. Hay 30 torneos, 1.248 partidos y 10.401 jugadores y jugadoras.
+Además de goles y premios, están disponibles plantillas, apariciones, tarjetas,
+sustituciones, tandas de penales, entrenadores, árbitros, estadios y clasificaciones.
+Los CSV están fijados a una revisión de la fuente con hashes en `data/fuente.json`.
+
+Para verificar/descargar los originales y regenerar todos los hechos:
+
+```sh
+python scripts/descargar_datos.py
+python scripts/csv_a_prolog.py
+```
+
+La conversión conserva todas las filas y columnas en `prolog/kb/dataset/` y mantiene
+las seis vistas originales en `prolog/kb/`. `registro/2` permite consultar cualquier
+tabla con un dict parcial; cada variable recibe el valor de esa columna:
+
+```prolog
+% Convocados argentinos de 2022, incluidos jugadores sin goles ni premios.
+registro(squads, _{tournament_id:"WC-2022", team_name:"Argentina",
+                  given_name:Nombre, family_name:Apellido}).
+
+% Partidos jugados por Messi en 2022.
+registro(players, _{family_name:"Messi", player_id:_Jugador}),
+aggregate_all(count, registro(player_appearances,
+  _{player_id:_Jugador, tournament_id:"WC-2022"}), Partidos).
+
+% Campeona del Mundial femenino de 2019.
+registro(tournaments, _{tournament_id:"WC-2019", winner:Campeona}).
+
+% Explorar las tablas y columnas disponibles.
+tabla_dataset(Tabla, Columnas, CantidadFilas).
+```
+
+En el dataset completo los IDs y textos son strings, los nombres están en inglés
+y las banderas son 0/1. No mezclar esos IDs con los átomos de las vistas originales
+(`argentina`, `lionel_messi`, etc.). Una variable libre como segundo argumento de
+`registro/2` devuelve la fila completa. El agente recibe el catálogo generado con
+todos los campos, tipos y torneos presentes en cada tabla.
+
+La cobertura varía por tabla: las apariciones individuales empiezan en 1970.
+Una convocatoria no prueba que el jugador haya entrado a la cancha y la ausencia
+de filas en un período sin cobertura no prueba que no haya participado. Los
+marcadores de datos ausentes se conservan tal como vienen de la fuente.
+
 ## Estructura
 
 | Archivo/carpeta | Función |
 |---|---|
 | `data/raw/`, `data/manual/` | Datos |
 | `scripts/csv_a_prolog.py` | Conversión de CSV a hechos |
+| `scripts/descargar_datos.py`, `data/fuente.json` | Descarga reproducible y hashes de la fuente |
+| `data/codebook/` | Diccionario oficial de tablas y variables |
 | `prolog/kb/` | Hechos generados: no editar a mano |
+| `prolog/kb/dataset/`, `prolog/dataset.pl` | Dataset completo, catálogo y consulta por columnas |
 | `prolog/kb_manual.pl` | Incorporaciones o correcciones manuales |
 | `prolog/cargar.pl` | Carga hechos y reglas |
 | `prolog/reglas.pl` | Inferencias y consultas derivadas |
@@ -148,6 +212,8 @@ swipl -q -s pruebas/reglas_tests.pl -g run_tests -t halt
 
 Las primeras pruebas guardan las respuestas reales en `pruebas/resultados.json`. Los resultados incluidos corresponden a la verificación realizada antes de preparar el informe.
 
+El formateador visual se puede verificar con Node: `node --test pruebas/test_prolog_format.cjs`.
+
 ## Ejemplos de consultas
 
 ```prolog
@@ -164,9 +230,9 @@ El bot reconoce campeones, subcampeones, terceros, sedes, equipos, partidos, gol
 ## Limitaciones del chatbot determinista y los datos
 
 - Reconocimiento por patrones: no entiende cualquier frase ni conserva contexto entre preguntas. Escribir una pregunta completa cada vez.
-- Alcance 1930-2022: no completa datos de 2026 ni torneos inexistentes.
+- Alcance: masculinos 1930–2022 y femeninos 1991–2019; no completa torneos posteriores.
 - Alemania Occidental y Alemania son entidades diferentes, siguiendo los hechos originales. Consultar cada nombre expresamente; sus títulos no se fusionan.
-- Jugadores: la base contiene goleadores y premiados, no todas las plantillas.
+- La vista original `jugador/3` contiene goleadores y premiados masculinos; todos los jugadores y plantillas están disponibles mediante `registro/2`.
 - Los autogoles se excluyen del total personal; la tanda de penales se separa del marcador.
 - En 1950 se explica el grupo final en lugar de inventar una final única.
 - La API se ejecuta localmente con un solo worker. GitHub Pages no ejecuta Python ni Prolog.
